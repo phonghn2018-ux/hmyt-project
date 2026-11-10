@@ -1,0 +1,219 @@
+# Test 2 — nhom14 — [CLASSIFICATION THE RISK OF DIABETIC RETINOPATHY USING OCT IMAGES]
+
+- Topic: Classification of diabetic retinopathy (DR) risk from OCT images — two branches: (A) Harvard-FairVision DR, (B) OLIVES
+- Members (student ID) and roles:
+  - 202414858 — M1, Branch A (FairVision-DR): GPU training, FIS, thresholds, latency. Responsible in this file for: B1, B2, B3 (FairVision part); A4
+  - 202414864 — M2, Branch B (OLIVES): data, fold splitting, baselines, biomarkers. Responsible in this file for: B1, B2, B3 (OLIVES part); A3; B5
+  - 202414861 — M3, Evaluation and data management: CIs, calibration, logistic baseline, FAIR, TRIPOD+AI, repository. Responsible in this file for: A1, C1–C4, B4, D
+  - Each member reads 4 papers from A2 in full (assignment at the end of A2) and must be able to answer the key numbers of both branches.
+
+## A. Literature review and research gaps
+
+### A1. Search strategy
+
+PubMed result counts were obtained by re-running the exact queries shown below on 09/11/2026 (PubMed, publication-year filter). The "Papers retained" column lists IDs from `DR_Literature_Review.xlsx`, assigned to the query matching each paper's topic.
+
+| Source (PubMed, Scopus, IEEE Xplore, Google Scholar…) | Keywords / query | Years | Results | Papers retained |
+|---|---|---|---|---|
+| PubMed — Q1. DR epidemiology | `(diabetic retinopathy) AND (prevalence) AND (systematic review OR meta-analysis)` | 2020–2026 | 323 | 1 (#1) |
+| PubMed — Q2. AI for DME detection on OCT | `(diabetic macular edema) AND (OCT) AND (deep learning OR artificial intelligence)` | 2020–2026 | 269 | 4 (#2, #6, #7, #8) |
+| PubMed — Q3. Predicting anti-VEGF response | `(diabetic macular edema) AND (anti-VEGF) AND (OCT) AND (deep learning OR predict*)` | 2020–2026 | 131 | 5 (#9, #10, #12, #13, #14) |
+| PubMed — Q4. AI on OCTA for DR | `(diabetic retinopathy) AND (OCTA OR OCT angiography) AND (deep learning OR machine learning)` | 2020–2026 | 112 | 10 (#3, #4, #15–#22) |
+| PubMed — Q5. DR screening on fundus photographs, real-world validation | `(diabetic retinopathy) AND (fundus photograph*) AND (deep learning) AND (validation OR screening)` | 2020–2026 | 183 | 6 (#5, #24–#28) |
+| PubMed — Q6. Retinal foundation models | `(foundation model) AND (retinal OR retina) AND (self-supervised)` | 2020–2026 | 33 | 1 (#29) |
+| PubMed — Q7. Public OCT/OCTA datasets and benchmarks | `(retinal OCT OR OCTA) AND (public dataset OR benchmark) AND (diabetic OR macular edema)` | 2014–2026 (extended to capture original dataset papers) | 78 | 9 (#30, #31, #34–#40) |
+| arXiv, Google Scholar (by dataset name); backward citation from the papers above | `FairVision`, `Harvard-FairVision30k`, `OLIVES dataset`; reference lists of #2, #3, #4 | No limit | Not applicable — searched by name or citation, no result count | 4 (#11, #23, #32, #33) |
+| **Total** | | | **1,129 hits** across the 7 PubMed queries (not de-duplicated across queries) | **40 papers**: 35 from 2020–2026, 5 from 2014–2019 |
+
+Characteristics of the 40 retained papers: 34 Q1, 3 Q2, 2 conference papers (NeurIPS D&B, ICAART), 1 preprint (arXiv); 5 reviews or meta-analyses (#1–#5), 11 original dataset/benchmark papers (#30–#40), 24 model development, validation or method-comparison studies (#6–#29).
+
+Inclusion / exclusion criteria:
+- Include: (1) AI/ML on OCT or OCTA for DR/DME: detection, grading, prediction of treatment response; (2) papers using fundus photographs but with OCT-derived labels (#7, #8), or providing evidence on external validation and real-world deployment (#24–#28), used for gaps G1 and G2; (3) reviews, meta-analyses and epidemiology as background; (4) original papers of public datasets the team uses or could use; (5) preference for Q1/Q2 journals published 2020–2026.
+- Exclude: papers without quantitative results; fundus-only papers with no OCT labels, no external validation and no real-world deployment; papers not on DR/DME (e.g., AMD or glaucoma only), except original dataset papers; papers without a traceable DOI or link; duplicates (latest full version kept).
+- Justified exceptions: 5 pre-2020 papers (#34, #35, #38, #39, #40) kept as original papers of public datasets; the FairVision preprint (#33) and the NeurIPS OLIVES paper (#32) because they are the sources of the two datasets the team uses; the ICAART conference paper (#11) as one of the few studies using a Siamese network to predict anti-VEGF response.
+- Acknowledged weaknesses: (1) the search history was not saved when the matrix was built, so the counts above are **re-run** counts from 09/11/2026; the number of papers excluded at each screening stage (title, abstract, full text) is not available and is not reported; (2) papers were assigned to queries by topic, and some may have been found through citations rather than in the query results.
+
+### A2. Literature matrix (≥ 10 papers, prioritizing the last 3–5 years)
+
+The # in parentheses is the ID in `DR_Literature_Review.xlsx`. 9/12 papers are from 2021 onwards.
+
+| # | Paper (authors, year) | DOI / link | Dataset (n, source) | Method | Main result (metric, value) | External validation? (yes / no) | Main limitation |
+|---|---|---|---|---|---|---|---|
+| 1 (#33) | Luo Y et al., 2024 (FairVision, arXiv v3) | https://doi.org/10.48550/arXiv.2310.02492 | Harvard-FairVision30k: 30,000 patients (10,000 DR), 1 3D OCT + 1 SLO per patient; fixed split 6,000/1,000/3,000 | 3D ResNet (OCT), ViT-B (SLO); Fair Identity Scaling (FIS) | VTDR, 3D OCT: AUC 92.22 ± 0.53 → 93.37 with FIS; SLO ViT-B: 85.22 → 85.71; race ES-AUC (3D) 81.97 → 85.78 | No | ICD-code labels (possibly noisy); single US health system; preprocessing not described; no calibration reported |
+| 2 (#32) | Prabhushankar M et al., 2022 (OLIVES, NeurIPS D&B) | https://doi.org/10.48550/arXiv.2209.11195 | 96 eyes, PRIME (DR) and TREX-DME (DME) trials, single clinic in Texas; 9,408 B-scans labeled with 16 biomarkers | ResNet-18 DR vs DME; multimodal training; contrastive learning on clinical labels | bAcc DR vs DME: OCT 70.15 ± 4.69; OCT + biomarkers 82.33 ± 3.59; mean AUROC over 5 biomarkers 0.790 (CST-based contrastive) | No | Single clinic, 96 eyes; trial patients, not a screening population; appendix (split ratios, hyperparameters) not in the PDF |
+| 3 (#6) | Tang F et al., 2021 | https://doi.org/10.2337/dc20-3064 | 100,727 OCT images, 4,261 eyes, 2,329 subjects; 3 device vendors; 7 external sets | Multitask CNN (3D ResNet-34 for Cirrus, 2D ResNet for B-scans) | DME: AUROC 0.937–0.965 (primary set), 0.906–0.956 (external sets) | Yes | Only gradable images; retrospective; lower performance on some external sets |
+| 4 (#2) | Lam C et al., 2024 (systematic review + meta-analysis) | https://doi.org/10.2337/dc23-0993 | 53 studies (28 OCT, 25 fundus) | Meta-analysis of AUROC, sensitivity, specificity | OCT: pooled AUROC 0.985, sensitivity 95.9%, specificity 97.9%; only 13/53 studies had external validation | Not applicable — review | Non-standardized DME definitions; suspected publication bias; missing demographic data |
+| 5 (#15) | Le D et al., 2020 | https://doi.org/10.1167/tvst.9.2.35 | 131 OCTA eyes (UIC) + 46 external eyes (Taiwan) | VGG16 transfer learning, 3 classes (control / diabetic without DR / DR) | ACC 87.3% (5-fold CV) → 70.8% on the external set | Yes | Small sample, single device; both eyes of the same person used |
+| 6 (#19) | Ryu G et al., 2021 | https://doi.org/10.1038/s41598-021-02479-6 | OCTA with several scan sizes; UWF-FA as reference standard | CNN | AUC 0.919–0.976; sensitivity 86–97%, specificity 94–99% | Yes | Few centers; FA available for only part of the patients |
+| 7 (#20) | Li Y et al., 2023 | https://doi.org/10.3390/diagnostics13172770 | EviRed (France): train 875 eyes / 444 patients, test 97 eyes / 53 patients | Hybrid fusion of 6×6 and 15×15 mm OCTA | AUC: any DR 0.8868; PDR/treated 0.9070 | No | Small test set (3 PDR eyes); labels from fundus photographs |
+| 8 (#10) | Song T et al., 2025 | https://doi.org/10.3389/fmed.2025.1505530 | 72 eyes / 72 patients with macular edema (DME, RVO, CNV), single hospital in Beijing; 8:2 split | Improved ResNet-50 predicting anti-VEGF response | AUC 0.9928 (day 1), 0.9998 (month 1), 0.9996 (month 3) | No | Very small, single center, mixed diseases; number of images per set not reported |
+| 9 (#14) | Liu Y et al., 2026 (DME-RWKV) | https://doi.org/10.3390/bioengineering13010012 | 402 eyes / 371 DME patients, single center in Shanghai; 5-fold CV | Multimodal Vision-RWKV (OCT + UWF + clinical) | Anti-VEGF response: AUC 0.8436; ACC 80.44% | No | Single center; authors state external validation is still needed |
+| 10 (#28) | Lee AY et al., 2021 | https://doi.org/10.2337/dc20-1877 | ~311,600 images, ~23,700 veterans, 2 VA sites (Seattle, Atlanta) | Head-to-head comparison of 7 commercial DR screening AI systems | Sensitivity 50.98–85.90%, specificity 60.42–83.69%; only 1 system matched human graders | Yes (independent real-world data) | Fundus photographs, not OCT; predominantly male population |
+| 11 (#8) | Liu X et al., 2022 | https://doi.org/10.1016/j.oret.2021.12.021 | 3,060 eyes / 1,582 patients (Australia, India, Thailand) + 698 eyes / 537 patients (UK); CI-DME labels from OCT | Deep learning predicting OCT-defined DME from color fundus photographs | Specificity 80%, sensitivity 81% (experts 59%/70%) | Yes | 2D images cannot replace OCT for quantification; not yet prospective |
+| 12 (#17) | Zang P et al., 2020 (DcardNet) | https://doi.org/10.1109/TBME.2020.3027231 | OCT/OCTA from the OHSU group (n not given in abstract); 10-fold CV | Dense CNN, DR grading at 2/3/5 levels | ACC 95.7% (2 classes), 85.0% (3 classes), 71.0% (5 levels) | No | Single center; sample size not given in abstract |
+
+Full-text reading assignment (4 papers each, matching each member's responsibilities):
+- M1 (202414858): #1 FairVision, #3 Tang, #6 Ryu, #12 Zang
+- M2 (202414864): #2 OLIVES, #7 Li, #8 Song, #9 Liu 2026
+- M3 (202414861): #4 Lam, #5 Le, #10 Lee, #11 Liu 2022
+
+### A3. Research gaps
+
+| Code | Gap (1–2 sentences) | Evidence (# in A2) | How our project addresses it |
+|---|---|---|---|
+| G1 | OCT/OCTA models are rarely externally validated, and performance drops when the population or device changes. | #4: only 13/53 studies externally validated; #5: ACC 87.3% → 70.8%; #3: external AUROC lower than primary; #10: large performance variation in real-world use | Partially: FairVision ↔ OLIVES encoder transfer (different devices and populations) with from-scratch and ImageNet controls (week 12); try Kermany/Duke in week 13, otherwise report as a limitation. The team does **not** have external data for the exact VTDR task. |
+| G2 | Small single-center datasets yield near-perfect results without confidence intervals. | #8: AUC ≈ 0.99 on 72 eyes; whereas #7 (875 eyes) and #9 (402 eyes) reach only AUC 0.84–0.89 | Use FairVision (10,000 patients, test 3,000); patient-level split; report mean ± SD over ≥ 3 seeds and patient-level bootstrap CIs; for OLIVES (87 patients) state the wide CI explicitly (~±5 AUC points). |
+| G3 | Fairness across demographic groups is almost never reported. | #1 is the only paper in A2 (and 1/40 in the matrix) reporting AUC by race, sex and ethnicity; #10 shows performance varying by site | Report per-group AUC, ES-AUC, PSD; reproduce and test FIS (B1, B2); bootstrap CIs for small groups (Asian: 233 test patients). |
+| G4 | Reference labels are often not independent of, or are tied to, data collection, so AUC may measure "data source" rather than disease. | #1: VTDR labels from ICD codes; #2: DR/DME label is the trial name. Our finding: BCVA + CST alone reach AUC 0.986 at the first OLIVES visit (B1) | Add image-free baselines (logistic regression on BCVA, CST, biomarkers, intensity statistics); report first and last visits separately; propose shifting the OLIVES focus to biomarker detection. |
+| G5 | Papers report only discrimination (AUC, ACC); calibration and Brier score are largely absent. | None of the 12 papers in A2 reports calibration or a Brier score in its main results (checked on full-text reading) | Add calibration curve, calibration-in-the-large, slope, Brier score with CIs (weeks 10–13). **The team has not done this yet either** (C4). |
+
+### A4. PROBAST+AI appraisal of the most important paper in A2
+
+Paper #1 (Luo et al., FairVision) · Reason: it is the source of the main dataset (Branch A), of the baseline the team reproduces (AUC 92.22), and of the FIS method the team proposes at Milestone 3. The *performance evaluation* part is appraised because the team uses these results as its reference.
+
+| Domain | Risk of bias (low / high / unclear) | Justification (quote or page in the paper) |
+|---|---|---|
+| Participants and data sources | High (applicability); unclear (risk of bias) | All 30,000 patients from one health system (Harvard Ophthalmology AI Lab, USA), retrospective, one scan per patient; the parts read do not state inclusion/exclusion criteria, time period or acquisition device. Demographics: White 78.6%, Black 13.7%, Asian 7.7%. [TO FILL page number: dataset description section in `Havard_Fair_Vision.pdf`] |
+| Predictors | Unclear | Inputs are 3D OCT 128×200×200 and SLO 200×200, clearly defined; but device, acquisition protocol and preprocessing are not reported, so it is unknown whether predictors were collected the same way for all patients and blinded to the outcome. |
+| Outcome | High | VTDR (severe NPDR or PDR) derived from ICD codes in the records, not from independent graders using a standard scale; the paper itself notes ICD labels may be noisy. ICD codes are entered by clinicians after viewing images (possibly including this OCT), so the label may not be independent of the predictors; the timing of coding relative to the scan is not reported. |
+| Analysis | High | Fixed 6,000/1,000/3,000 split, one sample per patient (no patient-level leakage — a strength). However: only AUC and fairness metrics, no calibration or Brier score; uncertainty only as SD across seeds, no patient-level CI; small minority groups (Asian test ≈ 233) without CIs; no external validation. FIS details (OT estimation, weight scale) are insufficient for reproduction (B3). |
+
+Applicability to our problem: usable as a reproduction benchmark on the same dataset. Not usable to draw conclusions for Vietnamese patients (different population, device, ICD labels) or for real-world screening.
+
+## B. Results and timeline
+
+### B1. Current results
+
+Branch A: fixed FairVision-DR test set, n = 3,000 patients (8.7% positive). Branch B: OLIVES, 5 patient-level folds (87 patients, 96 eyes, 192 volumes from first + last visits). Mean ± SD is across seeds (SD divided by n).
+
+| Model | Evaluation set (split, n) | Primary metric (value, 95% CI if available) | Secondary metrics | Source (file / notebook / W&B) |
+|---|---|---|---|---|
+| Baseline 1 (Milestone 2) — A: r3d_18 Kinetics-400, 3D OCT 64×128×128, 5 epochs | FairVision test, fixed split, n = 3,000; 3 seeds (0, 1, 2) | AUC 94.98 ± 0.19. No patient-level CI for overall AUC yet (in progress, week 10) | Race ES-AUC 87.61 ± 0.77; Mean PSD 3.54 ± 0.46; Black AUC 89.2 ± 0.6. Seed 0, Youden threshold 0.108 chosen on val: sensitivity 90.4%, specificity 89.4%, bAcc 89.9% | `results/fairvision/r3d_e5/seed{0,1,2}/results.json`; `results/fairvision/compare_fis_vs_baseline.csv`; command in `src/train.py` |
+| Baseline 2 (Milestone 2) — A: ViT-B MAE, 2D SLO | FairVision test, n = 3,000; 5 seeds | AUC 83.16 ± 0.36 | Race ES-AUC 74.10 ± 0.92 | `results/fairvision/vit_mae_slo/seed0..4/results.json` |
+| Baseline 3 — B: image-free logistic regression (BCVA + CST) | OLIVES, 5 patient-level folds, 192 volumes | AUC 0.860 [0.808; 0.908] (patient-level bootstrap CI) | bAcc 79.5%; AUC first visit 0.986, last visit 0.776 | `results/olives/olives_cv_results/` (logistic baseline) |
+| Proposed model (Milestone 3) — A: r3d_18 + FIS (race attribute, c = 0.5; team's implementation) | FairVision test, n = 3,000; 3 seeds | AUC 95.35 ± 0.17; paired difference vs baseline +0.28/+0.39/+0.44 (paired t, p ≈ 0.016). Test-sample bootstrap (seeds 1, 2): most difference CIs include 0 | Race ES-AUC 89.62 ± 0.56 (p ≈ 0.10); Mean PSD 2.52 ± 0.22 (p ≈ 0.16); Black AUC 91.0 ± 0.1 | `results/fairvision/fis_r3d/seed{0,1,2}/results.json`; `results/fairvision/compare_fis_vs_baseline.csv`; `src/models.py` (FISLoss) |
+| Proposed model (Milestone 3) — B: ImageNet ResNet-18 on B-scans, mean probability over 49 B-scans/volume | OLIVES, 5 patient-level folds, 192 volumes; 5 seeds | Volume AUC 90.6 ± 0.9; pooled over 5 seeds: 91.0 [86.0; 95.5] (patient-level bootstrap CI) | bAcc@0.5 82.8 ± 1.7; AUC first visit 97.6 ± 1.0; last visit 82.8 ± 1.2 | `src/olives_cv.py`; `results/olives/olives_cv_results/` |
+
+Interpretation: on OLIVES, the image model (first-visit AUC 97.6) **does not outperform** the image-free BCVA + CST baseline (98.6); at the last visit it is on par with BCVA + CST + biomarkers (≈ 83). FIS is beneficial in the same direction across all 3 seeds, but the statistical evidence is not yet sufficient.
+
+### B2. Ablation (Milestone 3)
+
+Full model, Branch A: r3d_18 Kinetics + FIS (AUC 95.35). Full model, Branch B: ImageNet ResNet-18, patient-level split (AUC 90.6).
+
+| Configuration (component removed / changed) | Primary metric | Difference vs full model | Source |
+|---|---|---|---|
+| A: remove FIS (= baseline 1), 3 seeds | AUC 94.98 ± 0.19; ES-AUC 87.61 | AUC −0.37; race ES-AUC −2.01; Mean PSD +1.02 | `results/fairvision/compare_fis_vs_baseline.csv` |
+| A: remove FIS and Kinetics pretraining, 1 seed | AUC 93.51 | −1.84 vs full; vs baseline with the same seed a drop of ≈ 1.4 (test-sample bootstrap CI 0.6–2.3). Only 1 seed, 5 epochs | `results/fairvision/r3d_scratch/seed0/results.json` |
+| A: replace 3D OCT with 2D SLO (ViT-B MAE), 5 seeds | AUC 83.16 ± 0.36 | −12.19 | `results/fairvision/vit_mae_slo/` |
+| B: remove ImageNet pretraining, 1 seed | Volume AUC 79.0; bAcc 67.7 | −11.6 AUC | `results/olives/olives_cv_results/` (no-pretrain run) |
+| B: patient-level → eye-level split, 3 fold partitions | Volume AUC higher or equal in all 3 partitions, mean +0.9 (95% CI −1.0; +2.8); bAcc inconsistent (−2.0; +0.35; +2.45) | +0.9 (suggests minor leakage, not conclusive) | `results/olives/olives_eyefold_results/`, `results/olives/olives_partitions_results/` |
+| B: replace images with 5 B-scan intensity statistics (logistic regression) | AUC 0.787 (B-scan level) | Not directly comparable (B-scan level, not volume) | `results/olives/olives_cv_results/` |
+
+Not yet done: Branch A preprocessing ablation (percentile clipping, Kinetics-style normalization, depth 128) to explain the remaining +1.3-point gap vs the paper; AUC under fp16 inference.
+
+### B3. Comparison with the literature
+
+- **vs #1 (FairVision, same dataset, same fixed test set):** ours 94.98 ± 0.19 vs 92.22 ± 0.53 (3D OCT); FIS 95.35 vs 93.37. Not a fully fair comparison because: (1) different architecture (Kinetics-pretrained r3d_18 vs the paper's 3D ResNet); (2) we downsample volumes to 64×128×128 and train only 5 epochs (paper: original size, 50 epochs, 5 seeds); (3) the paper does not describe preprocessing; (4) FIS is the team's interpretation, since the paper does not specify OT estimation and weight scale; (5) we have not verified that our split matches the paper's. Pretraining explains about half of the +2.8 gap (B2); the rest is unexplained. For SLO we are 2.06 points below the paper (≈ 6 × the across-seed SD), cause not yet isolated.
+- **vs #2 (OLIVES, same dataset):** our ResNet-18 bAcc 82.8 ± 1.7 vs 70.15 ± 4.69 in the paper. Not directly comparable: different split (5 patient-level folds vs eye-level), different unit of evaluation (volume vs B-scan), possibly different preprocessing and hyperparameters (paper appendix unavailable). More importantly, our BCVA + CST baseline reaches AUC 0.986 at the first visit, so DR/DME numbers from both the paper and the team may mainly reflect differences between the two trials (G4).
+- **vs #3 (Tang 2021):** AUROC 0.937–0.965 for DME detection on OCT. Different task (DME vs VTDR), different labels (graders vs ICD codes), different devices and populations, and #3 has external validation while we only have an internal test set. Used only to gauge feasibility, not for ranking.
+
+### B4. Timeline to completion
+
+Original plan: `Ke_hoach_tien_do_DR_OCT_15_tuan.xlsx` (week 1 starts 07/09/2026). M1 = 202414858 (Branch A), M2 = 202414864 (Branch B), M3 = 202414861 (evaluation, data, reporting). Completed tasks keep the member who did them; from week 10, each member leads about 5 tasks, plus shared tasks.
+
+| Task | Owner (student ID / role) | Milestone (M3 week 10 · M4 week 12 · Final week 15) | Planned date | Status (Not started / In progress / Done + evidence) |
+|---|---|---|---|---|
+| 3D baseline 3 seeds + FIS 3 seeds, comparison table | M1 | M3 | 08/11/2026 | Done — `results/fairvision/compare_fis_vs_baseline.csv` |
+| Extract 9,408 OLIVES B-scans, 5 patient-level folds, assert no patient overlap | M2 | M3 | 08/11/2026 | Done — `results/olives/manifest_olives_firstlast.csv`, `src/olives_cv.py` |
+| OLIVES ResNet-18 5 seeds + image-free logistic baseline | M2 | M3 | 08/11/2026 | Done (ahead of schedule) — `results/olives/olives_cv_results/` |
+| **Branch A** | | | | |
+| fp16 vs fp32 inference AUC (criterion: difference < 0.005) | M1 | M3 | 15/11/2026 | Not started |
+| Seeds 3, 4 for baseline and FIS (5 seeds as in the paper) | M1 | M4 | 22/11/2026 | Not started |
+| Preprocessing ablation (percentile clipping, Kinetics-style normalization, depth 128) to explain the remaining +1.3 points | M1 | M4 | 22/11/2026 | Not started |
+| Transfer the FairVision 3D OCT encoder → OLIVES (linear probe, fine-tune), with from-scratch and ImageNet controls | M1 | M4 | 29/11/2026 | Not started |
+| Shortcut-learning check for Branch A: metadata-only and intensity-only models | M1 | Final | 06/12/2026 | Not started |
+| **Branch B** | | | | |
+| Read Summaries_DR_DME_Studies: check whether BCVA/CST were enrollment criteria | M2 | M3 | 15/11/2026 | Not started |
+| Detection of 5 OLIVES biomarkers (IRF, DRT/ME, IRHRF, FAVF, PAVF), AUC/F1 with CIs | M2 | M4 | 22/11/2026 | Not started (awaiting instructor approval of the change of focus, B5) |
+| MLP/logistic regression on the biomarker vector and (BCVA, CST), first and last visits reported separately | M2 | M4 | 22/11/2026 | Not started |
+| Apply the OLIVES biomarker model to FairVision volumes; assess domain shift | M2 | M4 | 29/11/2026 | Not started |
+| External validation (Kermany/Duke) or report as a limitation | M2 | Final | 06/12/2026 | Not started |
+| **Evaluation, data, reporting** | | | | |
+| Patient-level bootstrap CIs for overall and per-group AUC (Branch A) | M3 | M3 | 15/11/2026 | Not started |
+| Calibration (curve, in-the-large, slope) + Brier score with CIs, both branches | M3 | M3 | 15/11/2026 | Not started |
+| Branch A logistic regression baseline (age, sex, race, no images) | M3 | M4 | 22/11/2026 | Not started |
+| Checksums (`data/CHECKSUMS.sha256`), verify OLIVES MD5 | M3 | M3 | 15/11/2026 | Not started |
+| Datasheets for both datasets (Gebru template) | M3 | M4 | 29/11/2026 | Not started |
+| Complete the TRIPOD+AI checklist (`report/tripod_ai_checklist.md`) | M3 | M3 | 09/11/2026 | Done — 27/27 items, `report/tripod_ai_checklist.md` |
+| Sample size calculation following Riley | M3 | Final | 13/12/2026 | Not started |
+| **Shared tasks** | | | | |
+| Commit all code and outputs to the fork, record `pip list` | M3 leads; M1, M2 provide outputs of their branches | M3 | 09/11/2026 | In progress |
+| Full-text reading of A2 papers, update `Read_Status` | M1, M2, M3 (4 papers each, see A2) | M3 | 09/11/2026 | Done — `Read_Status` updated in `DR_Literature_Review.xlsx` |
+| Final report, slides, demo, final Pull Request | M1: Branch A methods and results, demo; M2: data, Branch B; M3: literature review, evaluation, self-appraisal, report assembly and PR | Final | 20/12/2026 | Not started |
+
+### B5. Risks / blockers / questions for the instructor
+
+- **Biggest risk (Branch B):** the OLIVES DR/DME label coincides with the trial name; BCVA + CST already give AUC 0.986 at the first visit. Question: does the instructor agree to shift the OLIVES focus to biomarker detection, keeping DR/DME as a reference task?
+- The week-10 criterion "OLIVES bAcc within ±1 SD of the paper" no longer fits (our result is higher and the protocol differs). We propose comparing against control baselines (CST-only, intensity-only) and reporting first and last visits separately. Does the instructor agree?
+- Is a patient-level split, instead of the eye-level split in the plan (evidence in B2), acceptable?
+- FIS is the team's interpretation, not an exact reproduction: is that acceptable?
+- Evidence for FIS is weak (3 seeds; 59 positive Black cases and 16 positive Asian cases in the test set). At a fixed threshold (Youden on val), the Black–White sensitivity gap does not shrink with FIS.
+- Process risk: outputs are currently on Kaggle Output and Google Drive; numbers not committed to the repository do not count.
+
+## C. Self-assessment against the FAIR, TRIPOD+AI and PROBAST+AI appendix
+
+### C1. FAIR — data
+
+| Item | Answer | Evidence |
+|---|---|---|
+| Source, version, download date; checksum of the files used for training | **FairVision-DR:** Harvard Ophthalmology AI Lab, https://ophai.hms.harvard.edu/datasets/harvard-fairvision30k; DR folder (~40–52 GB); version and download date [TO FILL]; **no checksum yet** for `dataset.zip` and the `.npy` caches (only a `check()` function verifying sample count and file size). **OLIVES:** Zenodo, DOI 10.5281/zenodo.7105232, version v2 (09/06/2022); published MD5: `OLIVES.zip` e08f4198aa919d6900bd30525c137933, `OLIVES_Dataset_Labels.zip` e0b14b14f457e4abcafafdd60b8d3952; the team has not yet verified the MD5 locally | Dataset page; Zenodo page; `data/CHECKSUMS.sha256` to be added (sha256 of the original zips, `slo_224/*.npy`, `3d_d64_s128/*.npy`, `olives_bscan224.npy`) |
+| License / DUA, basis for permitted use | FairVision: CC BY-NC-ND 4.0 (non-commercial, no redistribution of derivatives), so the downsampled cache is kept Private on Kaggle and **no images are put in the repository**. OLIVES: CC BY 4.0 (Zenodo page) | FairVision dataset card; Zenodo page |
+| Datasheet: population, inclusion/exclusion criteria, variable definitions and units, limitations | A datasheet-equivalent description exists in the summary report (section 2: source, ethics, devices, demographics, label definitions, variable coding, limitations). Not yet in the Gebru template; missing FairVision inclusion/exclusion criteria (not stated in the paper) and CST units (not given in the OLIVES paper) | `report/` [TO FILL: file name after adding the report to the repository] |
+| No patient identifiers | Both datasets are de-identified at the source (FairVision: IRB, de-identified; OLIVES: no identifying information under HIPAA). The repository contains only code, anonymized ID manifests and aggregate results, no images | Original papers #1, #2; `.gitignore` |
+
+### C2. Reporting guideline
+
+- Research question: From a 3D OCT volume (and SLO image) acquired at one visit, how well can a deep learning model distinguish people with vision-threatening DR (VTDR: severe NPDR or PDR) from those without, and is performance consistent across race, sex and ethnicity groups? Branch B: from OCT B-scans, identify DR/DME and biomarkers.
+- Appropriate reporting guideline (TRIPOD+AI / STARD-AI / DECIDE-AI) and rationale (Appendix §3.2): **TRIPOD+AI**, because the team *develops and internally validates* a diagnostic prediction model (training, architecture comparison, FIS, threshold selection), rather than evaluating the accuracy of a locked AI test against a reference standard (STARD-AI) or evaluating clinical use of the tool by clinicians (DECIDE-AI). STARD-AI will additionally be consulted for sensitivity/specificity at the chosen threshold.
+- Number of checklist items met / total; missing items: **27/27** items completed in `report/tripod_ai_checklist.md`. Analyses that the checklist reports as not yet done in the results, and that are scheduled in B4: calibration and Brier score, patient-level CI for the Branch A primary metric, sample size calculation.
+- Outcome, label, prediction time T0, variables available at T0:
+  - Outcome (A): binary VTDR, `dr_subtype` ∈ {severe.npdr, pdr} = 1; {no.dr.diagnosis, not.in.icd.table, mild.npdr, moderate.npdr} = 0. Label source: ICD codes in the records. `dr_class` (a different 3-class label) is not used.
+  - Outcome (B): DR (PRIME) or DME (TREX-DME), assigned by trial; binary per-B-scan biomarkers assigned by graders blinded to clinical information.
+  - T0: time of OCT acquisition at the visit.
+  - Variables at T0: (A) 3D OCT volume 128×200×200, SLO image 200×200. Race, sex and ethnicity are available at T0 but **used only for fairness evaluation and FIS loss weighting during training**, not as inference inputs. (B) 49 B-scans, BCVA and CST measured at the same visit.
+  - Point to clarify: the timing of ICD coding relative to the scan is not reported by the dataset, so it is not certain that the label reflects the status *at* T0.
+
+### C3. PROBAST+AI — self-appraisal of the team's project
+
+| Domain | Risk of bias (low / high / unclear) | Evidence in the repository (file, line) | Actions to reduce risk |
+|---|---|---|---|
+| Participants and data sources | A: unclear (dataset inclusion/exclusion criteria not published). B: high — 87 patients from two different trials, not a screening population | `src/data.py` (reads `data_summary_dr.csv`, `use` column for the split) [line: fill after commit]; `results/olives/manifest_olives_firstlast.csv` | State population and limitations in the datasheet; do not generalize to community screening or Vietnamese patients |
+| Predictors | Low–unclear. Min-max preprocessing **per image/volume** and ImageNet normalization use constants, so nothing is fitted on the full dataset; FairVision acquisition device unknown | `src/cache_fv_zip.py` (min-max, downsampling); `src/data.py` (normalization) [line: fill] | Shortcut-learning check: metadata-only/intensity-only models (done for OLIVES: AUC 0.787 at B-scan level; not yet for FairVision) |
+| Outcome (note incorporation bias) | **High.** A: ICD codes entered by clinicians after viewing images, possibly this very OCT → label not independent of the input. B: DR/DME label = trial name; if CST/BCVA were enrollment criteria for TREX-DME, the BCVA + CST baseline (AUC 0.986 at first visit) suffers incorporation bias, and the image model may learn "thickness/edema" rather than "DR vs DME" (hypothesis, not yet tested) | `src/data.py` (`dr_subtype` → label mapping) [line: fill]; `src/olives_cv.py` (label from trial name) [line: fill] | Read Summaries_DR_DME_Studies to confirm enrollment criteria; report first/last visits separately; shift to biomarkers (labeled by blinded graders); state the ICD label limitation |
+| Analysis (patient-level split, fitting on train only, sample size, missing data) | **High.** Strengths: A one sample per patient, predefined split; B 5 patient-level folds with an assert (8/9 patients with both eyes would be split under an eye-level split); epoch and threshold chosen on val. Weaknesses: (1) no calibration or Brier score yet; (2) no patient-level CI for Branch A overall AUC yet; (3) many configurations reported on test → risk of test-based model selection; (4) small groups (16 positive Asian cases in test); (5) OLIVES 87 patients, val-selected threshold ranges 0.002–0.88; (6) no sample size calculation | `src/train.py` (epoch selected by val AUC) [line: fill]; `src/utils.py` (Youden on val) [line: fill]; `src/olives_cv.py` (assert no patient overlap between folds) [line: fill] | Add calibration (curve, in-the-large, slope) + Brier score with bootstrap CIs; lock the configuration before looking at test and record which configuration was chosen on val; per-group bootstrap CIs; use AUC and bAcc@0.5 as primary for OLIVES |
+
+Applicability (population, intended use): adults with diabetes imaged with OCT at one US health system (A) and DR/DME trial patients at one clinic in Texas (B). The model is at the internal validation stage and is not yet applicable to screening in Vietnam: different population (Asian only 7.7%), different OCT devices, ICD labels, no calibration and no external validation yet.
+
+### C4. Quick checklist (Appendix §7)
+
+| Item | Met / Not met | Evidence |
+|---|---|---|
+| Datasheet | Not met (partial) | Detailed data description in the summary report, not yet in datasheet form; FairVision inclusion/exclusion criteria missing |
+| Data version + checksum | Not met | OLIVES has a DOI, version v2 and published MD5 but the team has not verified it locally; FairVision version, download date and checksum not recorded. Planned: `data/CHECKSUMS.sha256` (week 10, B4) |
+| No identifiers; basis for permitted data use | Met | Both datasets de-identified; CC BY-NC-ND 4.0 (FairVision), CC BY 4.0 (OLIVES); no images in the repository |
+| Correct reporting guideline chosen + checklist completed | Met | TRIPOD+AI, 27/27 items — `report/tripod_ai_checklist.md` (C2) |
+| Outcome, label, T0 defined | Met (with a point to clarify) | C2; timing of ICD coding relative to T0 unclear |
+| Patient-level split; preprocessing fitted on train only | Met | A: one sample per patient, predefined split; B: 5 patient-level folds with an assert; per-image preprocessing, no fitted statistics; epoch and threshold chosen on val. [TO CONFIRM: whether the OLIVES logistic regression standardization is fitted within each fold — check `src/olives_cv.py`] |
+| Logistic regression baseline (or a suitable baseline, with rationale) | Met for B, not met for A | B: logistic regression on BCVA + CST, biomarkers, intensity. A: no logistic baseline yet; proposed logistic regression on age, sex, race (image-free features) to measure the added value of OCT |
+| AUC + calibration (curve, in-the-large, slope) + Brier score, with 95% CIs | Not met | AUC available; CIs only for Branch B; no calibration or Brier score in either branch (biggest weakness, weeks 10–13) |
+| Adequate sample size; applicability limitations | Not met (partial) | Limitations stated (C3); no Riley sample size calculation yet. FairVision test ≈ 261 positives (8.7% × 3,000), but only 16 positive Asian cases; OLIVES 87 patients |
+
+## D. AI use declaration
+
+Throughout the course of this project, we utilized AI tools such as ChatGPT and Claude to assist with tasks such as locating relevant literature, generating illustrative imagery, correcting errors in our writing, and processing information. Nevertheless, our team remained solely responsible for all key decisions, including the selection and preprocessing of datasets. Furthermore, we rigorously verified the information and materials provided by these AI tools to ensure the highest level of accuracy and reliability. We took great care to avoid incorporating incorrect information or unofficial sources; in particular, we independently validated our data to ensure that our findings were consistent with the results reported in the research papers that originally utilized these datasets.
+
+| Tool | Used for | How the team verified it |
+|---|---|---|
+| ChatGPT, Claude | Locating relevant literature and summarizing it to build the 40-paper matrix | Every paper has a traceable DOI or link; DOI, authors, year and journal of #3–#6 checked via Crossref, abstract figures of #7–#9 checked against the publisher pages; A1 result counts are direct re-runs on PubMed. All A2 figures were checked against the full texts by the assigned members (A2) |
+| ChatGPT, Claude | Generating illustrative images for slides | Used only as illustrations, never as data or evidence of results |
+| ChatGPT, Claude | Correcting errors in writing; drafting progress reports | Each member reviewed the sections they are responsible for (see Members); every number in B1 and B2 must be traceable to a file in `results/` |
